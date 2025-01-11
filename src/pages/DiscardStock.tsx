@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { Search, Trash2 } from 'lucide-react';
 import { useInventory } from '../hooks/useInventory';
 import { InventoryItem } from '../types/inventory';
-import {useTheme} from '../contexts/ThemeContext'
+import { supabase } from '../lib/supabase';
+import { useTheme } from '../contexts/ThemeContext';
 
 function DiscardStock() {
-  const { items, isLoading, updateItem } = useInventory();
+  const { items, isLoading, refetchItems } = useInventory();
   const [searchTerm, setSearchTerm] = useState('');
   const [discardingItem, setDiscardingItem] = useState<InventoryItem | null>(null);
   const [discardAmount, setDiscardAmount] = useState('');
   const [discardReason, setDiscardReason] = useState('');
 
-  const {theme} = useTheme();
+  const { theme } = useTheme();
 
   const filteredItems = items.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -26,15 +27,30 @@ function DiscardStock() {
     if (amount <= 0 || amount > discardingItem.qty_in_stock) return;
 
     try {
-      const newQuantity = discardingItem.qty_in_stock - amount;
-      await updateItem(discardingItem.id, {
-        qty_in_stock: newQuantity,
-        _discard: {
-          amount: -amount,
-          reason: discardReason,
-          type: 'discarded'
-        }
-      });
+      // Start a transaction
+      const { error: updateError } = await supabase
+        .from('items')
+        .update({ 
+          qty_in_stock: discardingItem.qty_in_stock - amount 
+        })
+        .eq('id', discardingItem.id);
+
+      if (updateError) throw updateError;
+
+      // Create stock update record
+      const { error: stockUpdateError } = await supabase
+        .from('stock_updates')
+        .insert({
+          item_id: discardingItem.id,
+          qty_change: -amount,
+          update_type: 'discarded',
+          remarks: discardReason
+        });
+
+      if (stockUpdateError) throw stockUpdateError;
+
+      // Refresh the items list
+      await refetchItems();
       
       setDiscardingItem(null);
       setDiscardAmount('');
@@ -75,11 +91,11 @@ function DiscardStock() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className={`${theme === 'dark' ? 'bg-[#1A1025] text-purple-200 divide-[#2D1F3F]' : 'bg-white divide-gray-200'} divide-y `}>
+          <tbody className={`${theme === 'dark' ? 'bg-[#1A1025] text-purple-200 divide-[#2D1F3F]' : 'bg-white divide-gray-200'} divide-y`}>
             {filteredItems.map((item) => (
-              <tr key={item.id} className={`${theme === 'dark' ? 'hover:bg-[#2D1F3F] hover:text-purple-200' : 'hover:bg-gray-50'} `}>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm  ${theme === 'dark' ? 'text-purple-200' : 'text-gray-900'}`}>{item.ref_num}</td>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm  ${theme === 'dark' ? 'text-purple-200' : 'text-gray-900'}`}>{item.name}</td>
+              <tr key={item.id} className={`${theme === 'dark' ? 'hover:bg-[#2D1F3F] hover:text-purple-200' : 'hover:bg-gray-50'}`}>
+                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-purple-200' : 'text-gray-900'}`}>{item.ref_num}</td>
+                <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-purple-200' : 'text-gray-900'}`}>{item.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {item.qty_in_stock} {item.unit}
                 </td>
