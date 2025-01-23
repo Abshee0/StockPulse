@@ -15,7 +15,8 @@ import {
   ClipboardList,
   Trash2,
   Menu,
-  X
+  X,
+  BarChart2
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -29,6 +30,7 @@ function Layout() {
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Inventory', href: '/inventory', icon: Package },
     { name: 'Stock Count', href: '/inventory/stock-count', icon: ClipboardList },
+    { name: 'Stock Usage', href: '/inventory/stock-usage', icon: BarChart2 },
     { name: 'Discard Stock', href: '/inventory/discard', icon: Trash2 },
     { name: 'Orders', href: '/orders', icon: ShoppingCart },
     { name: 'Reports', href: '/reports', icon: FileText },

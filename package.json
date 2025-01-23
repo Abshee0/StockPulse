@@ -1,6 +1,5 @@
 {
   "name": "inventory-management-system",
-  "homepage": "https://helpful-squirrel-b6cb90.netlify.app/StockPulse",
   "private": true,
   "version": "0.0.0",
   "type": "module",
